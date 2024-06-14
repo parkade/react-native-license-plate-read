@@ -1,7 +1,13 @@
 import React, {useState, useLayoutEffect, useCallback, useEffect} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {
+  LayoutChangeEvent,
+  PixelRatio,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Pages from '@utils/pages';
-import {plateRegex} from '@utils/index';
 import {RootStackParamList} from 'types/navigation';
 import {CameraPageRight} from '@components/NavigationHeader';
 
@@ -17,6 +23,29 @@ import {StackScreenProps} from '@react-navigation/stack';
 // * Types
 type Props = StackScreenProps<RootStackParamList, Pages.CAMERA>;
 export type FlashActiveProps = 'off' | 'on' | undefined;
+type BoundingFrame = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  boundingCenterX: number;
+  boundingCenterY: number;
+};
+type Point = {x: number; y: number};
+
+type TextElement = {
+  text: string;
+  frame: BoundingFrame;
+  cornerPoints: Point[];
+};
+
+type TextLine = {
+  text: string;
+  elements: TextElement[];
+  frame: BoundingFrame;
+  recognizedLanguages: string[];
+  cornerPoints: Point[];
+};
 
 const CameraPage = ({navigation}: Props) => {
   // * State's
@@ -26,6 +55,9 @@ const CameraPage = ({navigation}: Props) => {
   // * Vision Camera Hooks
   const devices = useCameraDevices();
   const device = devices.back;
+
+  const [pixelRatio, setPixelRatio] = useState<number>(1);
+  const [getTextLine, setTextLine] = useState<TextLine>();
 
   // * Functions
   const frameProcessor = useFrameProcessor(frame => {
@@ -42,12 +74,46 @@ const CameraPage = ({navigation}: Props) => {
     [navigation],
   );
 
+  const renderOverlay = () => {
+    return (
+      <>
+        <TouchableOpacity
+          onPress={() => {
+            // Clipboard.setString(block.text);
+            // Alert.alert(`"${getTextLine?.text}" copied to the clipboard`);
+          }}
+          style={{
+            position: 'absolute',
+            left: (getTextLine?.frame.x || 0) * pixelRatio,
+            top: (getTextLine?.frame.y || 0) * pixelRatio,
+            backgroundColor: 'white',
+            padding: 8,
+            borderRadius: 6,
+          }}>
+          <Text
+            style={{
+              fontSize: 25,
+              justifyContent: 'center',
+              textAlign: 'center',
+            }}>
+            {getTextLine?.text}
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
+  };
+
   // * Effects
   useEffect(() => {
     ocr?.result?.blocks?.map(block => {
-      if (block.text.match(plateRegex)) {
-        navigate(block.text);
-      }
+      block.lines?.map(line => {
+        if (line.text) {
+          console.info(
+            `Found text line ${line.text} with box ${line.frame.y}, ${line.frame.x}`,
+          );
+          setTextLine(line);
+        }
+      });
     });
   }, [navigate, ocr]);
   useLayoutEffect(() => {
@@ -66,15 +132,26 @@ const CameraPage = ({navigation}: Props) => {
   return (
     <View style={styles.wrapper}>
       {device ? (
-        <Camera
-          style={{...StyleSheet.absoluteFillObject}}
-          frameProcessor={frameProcessor}
-          device={device}
-          isActive={true}
-          enableZoomGesture
-          torch={isFlashActive}
-          frameProcessorFps={5}
-        />
+        <>
+          <Camera
+            style={{...StyleSheet.absoluteFillObject}}
+            frameProcessor={frameProcessor}
+            device={device}
+            isActive={true}
+            enableZoomGesture
+            torch={isFlashActive}
+            frameProcessorFps={1}
+            onLayout={(event: LayoutChangeEvent) => {
+              setPixelRatio(
+                event.nativeEvent.layout.width /
+                  PixelRatio.getPixelSizeForLayoutSize(
+                    event.nativeEvent.layout.width,
+                  ),
+              );
+            }}
+          />
+          {renderOverlay()}
+        </>
       ) : (
         <View style={styles.notAvailableContainer}>
           <Text>Camera not available</Text>

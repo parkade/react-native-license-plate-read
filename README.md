@@ -1,6 +1,17 @@
 # React Native License Plate Read
 
-This license plate reader is an application that gives personal information of people if they have license plate data registered in the database.
+## Steps ben took
+
+* yarn install
+* rbenv install 2.7.5
+* rbenv shell 2.7.5
+* chmod +w Pods/Flipper/xplat/Flipper/FlipperTransportTypes.h
+* bundle install
+* bundle exec pod install --project-directory=ios
+* yarn ios
+
+This license plate reader is an application that gives personal information of people if they have license plate data
+registered in the database.
 
 # There is an APK file at releases. You can try the app if you want.
 
